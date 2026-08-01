@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 
-interface Props { title: string; subtitle?: string; actions?: ReactNode }
+interface Props { title: string; subtitle?: string | ReactNode; actions?: ReactNode }
 
 export default function PageHeader({ title, subtitle, actions }: Props) {
   return (

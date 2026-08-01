@@ -27,7 +27,7 @@ import BookingModal from '@/components/bookings/BookingModal'
 import BookingWorkflow from '@/components/bookings/BookingWorkflow'
 import { QuotationFromBookingModal } from '@/pages/Quotations'
 import AssignTechnicianModal from '@/components/bookings/AssignTechnicianModal'
-import { useAdminWebSocket } from '@/hooks/useAdminWebSocket'
+import { useAdminWebSocket, WSStatus } from '@/hooks/useAdminWebSocket'
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const money   = (n: number) => `₹${(n || 0).toLocaleString('en-IN')}`
@@ -139,6 +139,13 @@ export default function Bookings() {
   // ── Manual assign needed alerts ──────────────────────────────────────────
   const [manualAlerts, setManualAlerts] = useState<Array<{ booking_id: string; booking_number: string; message: string; ts: number }>>([])
 
+  // ── new booking live toast alerts (BOOKING_CREATED WS event) ──
+  const [newBookingAlerts, setNewBookingAlerts] = useState<Array<{
+    booking_id: string; booking_number: string; customer_name: string
+    customer_mobile: string; service_name: string; city: string; ts: number
+  }>>([])
+  const [wsStatus, setWsStatus] = useState<WSStatus>('disconnected')
+
   // ── settle modal (from bookings detail) ──
   const [settleBooking, setSettleBooking] = useState<any>(null)
   const [settlePreview, setSettlePreview] = useState<any>(null)
@@ -204,8 +211,9 @@ export default function Bookings() {
   useEffect(() => { fetchBookings() }, [fetchBookings])
 
   // ── Live WebSocket: auto-refresh bookings list on assignment events ────────
-  const { subscribe } = useAdminWebSocket()
+  const { subscribe, status: _wsStatus } = useAdminWebSocket()
   useEffect(() => {
+    setWsStatus(_wsStatus)
     const unsub1 = subscribe('ASSIGNMENT_CREATED',        () => fetchBookings())
     const unsub2 = subscribe('ASSIGNMENT_ACCEPTED',       () => fetchBookings())
     const unsub3 = subscribe('ASSIGNMENT_REJECTED',       () => fetchBookings())
@@ -218,8 +226,28 @@ export default function Bookings() {
         ...prev.slice(0, 4),  // keep latest 5
       ])
     })
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6() }
-  }, [subscribe, fetchBookings])
+    const unsub7 = subscribe('BOOKING_CREATED', (payload: any) => {
+      // Instantly refresh the list so new booking appears
+      fetchBookings()
+      // Show a toast alert so admin knows a new booking arrived
+      setNewBookingAlerts(prev => [
+        {
+          booking_id:      payload?.booking_id      || '',
+          booking_number:  payload?.booking_number  || '',
+          customer_name:   payload?.customer_name   || 'New Customer',
+          customer_mobile: payload?.customer_mobile || '',
+          service_name:    payload?.service_name    || '',
+          city:            payload?.city            || '',
+          ts: Date.now(),
+        },
+        ...prev.slice(0, 4),  // keep latest 5
+      ])
+    })
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7() }
+  }, [subscribe, fetchBookings, _wsStatus])
+
+  // keep wsStatus in sync when connection state changes outside the subscribe effect
+  useEffect(() => { setWsStatus(_wsStatus) }, [_wsStatus])
 
   // debounce search
   useEffect(() => {
@@ -335,13 +363,87 @@ export default function Bookings() {
     <div style={{ padding: '24px 28px' }}>
       <PageHeader
         title="Bookings"
-        subtitle={`${total} booking${total !== 1 ? 's' : ''}${viewMode === 'action' ? ' needing action' : ''}`}
+        subtitle={
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>
+              {total} booking{total !== 1 ? 's' : ''}
+              {viewMode === 'action' ? ' needing action' : ''}
+            </span>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12,
+              background: wsStatus === 'connected' ? '#DCFCE7' : wsStatus === 'connecting' ? '#FEF3C7' : '#FEE2E2',
+              color:      wsStatus === 'connected' ? '#166534' : wsStatus === 'connecting' ? '#92400E' : '#991B1B',
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: wsStatus === 'connected' ? '#22C55E' : wsStatus === 'connecting' ? '#F59E0B' : '#EF4444',
+                animation: wsStatus === 'connecting' ? 'pulse 1s ease-in-out infinite' : 'none',
+              }}/>
+              {wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting…' : 'Offline'}
+            </span>
+          </span>
+        }
         actions={
           <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
             + New Booking
           </button>
         }
       />
+
+      {/* ── New Booking Live Toast Banners (BOOKING_CREATED WS) ─────────── */}
+      {newBookingAlerts.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          {newBookingAlerts.map((alert, i) => (
+            <div
+              key={`${alert.booking_id}-${alert.ts}`}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                flexWrap: 'wrap', gap: 10,
+                background: 'linear-gradient(135deg,#F0FDF4,#DCFCE7)',
+                border: '2px solid #86EFAC', borderRadius: 10,
+                padding: '10px 16px', marginBottom: 6,
+                boxShadow: '0 2px 8px rgba(34,197,94,0.15)',
+                animation: 'pulse 0.6s ease-in-out 2',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 22 }}>🔔</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#166534' }}>
+                    New Booking — #{alert.booking_number}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#15803D', marginTop: 2 }}>
+                    {alert.customer_name}
+                    {alert.customer_mobile ? ` · ${alert.customer_mobile}` : ''}
+                    {alert.service_name ? ` · ${alert.service_name}` : ''}
+                    {alert.city ? ` · 📍 ${alert.city}` : ''}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn btn-sm"
+                  style={{ background: '#16A34A', color: 'white', border: 'none', fontWeight: 700 }}
+                  onClick={() => {
+                    setNewBookingAlerts(prev => prev.filter((_, idx) => idx !== i))
+                    // Scroll to top so the new row is visible
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                >
+                  View
+                </button>
+                <button
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => setNewBookingAlerts(prev => prev.filter((_, idx) => idx !== i))}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Manual Assign Needed Alert Banners ───────────────────────────── */}
       {manualAlerts.length > 0 && (
