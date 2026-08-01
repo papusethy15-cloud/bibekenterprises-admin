@@ -1372,7 +1372,7 @@ export function QuotationEditor({
               { k: 'labour_charges', label: 'Labour (₹)' },
               { k: 'service_charges', label: 'Svc Charges (₹)' },
               { k: 'discount_amount', label: 'Discount (₹)' },
-              { k: 'adjustment_amount', label: 'Adjustment (₹)' },
+              { k: 'adjustment_amount', label: 'Adjustment − Deduct (₹)' },
             ].map(({ k, label }) => (
               <div key={k}>
                 <label style={{ ...lbl, fontSize: 11 }}>{label}</label>
@@ -1538,7 +1538,7 @@ export function QuotationEditor({
             ['Labour', money(q?.labour_charges)],
             ['Service Charges', money(q?.service_charges)],
             ['Discount (−)', `− ${money(q?.discount_amount)}`],
-            ['Adjustment', money(q?.adjustment_amount)],
+            ['Adjustment (−)', q?.adjustment_amount ? `− ${money(q.adjustment_amount)}` : money(0)],
             ...(q?.coupon_code ? [[`🏷️ Coupon (${q.coupon_code})`, `− ${money(q.coupon_discount)}`]] : []),
           ].map(([k, v]) => (
             <div key={k} style={{ background: '#fff', borderRadius: 6, padding: '8px 12px', border: '1px solid #F1F5F9' }}>

@@ -329,15 +329,23 @@ export const crmAPI = {
 export const amcAPI = {
   plans:            ()               => api.get('/amc/plans'),
   createPlan:       (d: any)         => api.post('/amc/plans', d),
+  updatePlan:       (id: string, d: any) => api.put(`/amc/plans/${id}`, d),
+  purchase:         (d: any)         => api.post('/amc/purchase', d),
   subscriptions:    (params?: any)   => api.get('/amc/subscriptions', { params }),
   byCustomer:       (cid: string)    => api.get(`/amc/customer/${cid}`),
   renewals:         ()               => api.get('/amc/renewals'),
+  renew:            (d: any)         => api.post('/amc/renew', d),
+  scheduleVisit:    (d: any)         => api.post('/amc/visit', d),
 }
 
 // ── Warranty ───────────────────────────────────────────────────
 export const warrantyAPI = {
-  list:   (params?: any) => api.get('/warranty', { params }),
-  claims: (params?: any) => api.get('/warranty/claims', { params }),
+  list:          (params?: any) => api.get('/warranty', { params }),
+  get:           (id: string)   => api.get(`/warranty/${id}`),
+  create:        (d: any)       => api.post('/warranty', d),
+  claims:        (params?: any) => api.get('/warranty/claims', { params }),
+  approveClaim:  (d: any)       => api.post('/warranty/approve', d),
+  rejectClaim:   (d: any)       => api.post('/warranty/reject', d),
 }
 
 // ── Notifications ──────────────────────────────────────────────
