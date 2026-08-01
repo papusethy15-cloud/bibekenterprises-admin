@@ -41,6 +41,10 @@ export default function Invoices() {
   const [dateTo, setDateTo] = useState('')
   const [sendingEmail, setSendingEmail] = useState<string | null>(null)
   const [downloadingPDF, setDownloadingPDF] = useState<string | null>(null)
+  const [whatsappLoading, setWhatsappLoading] = useState<string | null>(null)
+  const [whatsappModal, setWhatsappModal] = useState<{
+    inv: any; mobile: string; pdfBlobUrl: string | null
+  } | null>(null)
 
   // Use refs to always have latest filter values in fetchData
   const searchRef = useRef(search)
@@ -131,11 +135,78 @@ export default function Invoices() {
     finally { setSendingEmail(null) }
   }
 
+  // ── WhatsApp share via wa.me deep-link (no WhatsApp API needed) ────────────
+  // Strategy:
+  //  1. Fetch full invoice detail to get customer_phone
+  //  2. Download PDF blob → open in new tab (admin can save/share manually)
+  //  3. Open WhatsApp Web / Desktop with pre-filled invoice message
+  //  4. Mark sent_whatsapp_at on backend
   const handleSendWhatsApp = async (inv: any) => {
+    setWhatsappLoading(inv.id)
     try {
-      await invoicesAPI.whatsapp(inv.id)
-      alert('WhatsApp message queued')
-    } catch { alert('Failed to send WhatsApp') }
+      // Step 1 — get full detail (need customer_phone)
+      let fullInv = inv
+      try {
+        const dr = await invoicesAPI.get(inv.id)
+        fullInv = dr.data?.data || inv
+      } catch {}
+
+      const mobile = (fullInv.customer_phone || '').replace(/\D/g, '')
+      
+      // Step 2 — download PDF blob
+      let pdfBlobUrl: string | null = null
+      try {
+        const pr = await invoicesAPI.pdf(inv.id)
+        const blob = new Blob([pr.data], { type: 'application/pdf' })
+        pdfBlobUrl = URL.createObjectURL(blob)
+      } catch {}
+
+      // Step 3 — mark backend
+      try { await invoicesAPI.whatsapp(inv.id) } catch {}
+
+      // Step 4 — show WhatsApp modal to let admin confirm/edit number & send
+      setWhatsappModal({ inv: fullInv, mobile, pdfBlobUrl })
+    } catch (err) {
+      console.error('WhatsApp share error:', err)
+      alert('Failed to prepare WhatsApp share. Please try again.')
+    } finally {
+      setWhatsappLoading(null)
+    }
+  }
+
+  // Open WhatsApp with pre-filled message
+  const openWhatsApp = (mobile: string, inv: any, pdfBlobUrl: string | null) => {
+    const num = mobile.replace(/\D/g, '')
+    const fmt2 = (n: any) => `₹${(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    
+    const msg = [
+      `*Invoice from Palei Solutions* 🧾`,
+      ``,
+      `Invoice No: *${inv.invoice_number || '—'}*`,
+      `Customer: ${inv.customer_name || '—'}`,
+      `Booking #: ${inv.booking_number || '—'}`,
+      `Amount: *${fmt2(inv.total_amount)}*`,
+      `Status: ${inv.status || 'GENERATED'}`,
+      ``,
+      `Please find your invoice PDF attached.`,
+      `For any queries, please contact us.`,
+      ``,
+      `Thank you for choosing Palei Solutions! 🙏`,
+    ].join('\n')
+
+    // Open PDF in new tab so admin can attach/share manually
+    if (pdfBlobUrl) {
+      window.open(pdfBlobUrl, '_blank')
+    }
+
+    // Open WhatsApp — with number if available, else just wa.me
+    const encodedMsg = encodeURIComponent(msg)
+    const waUrl = num
+      ? `https://wa.me/${num.startsWith('91') ? num : '91' + num}?text=${encodedMsg}`
+      : `https://web.whatsapp.com/?text=${encodedMsg}`
+    
+    setTimeout(() => window.open(waUrl, '_blank'), 300)
+    setWhatsappModal(null)
   }
 
   const fmt = (n: any) => `₹${(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
@@ -290,8 +361,18 @@ export default function Invoices() {
                               style={{ padding: '4px 7px' }}>✉</button>
                             <button className="btn btn-secondary btn-sm"
                               onClick={() => handleSendWhatsApp(inv)}
-                              title="Send WhatsApp"
-                              style={{ padding: '4px 7px', color: '#25D366' }}>📱</button>
+                              disabled={whatsappLoading === inv.id}
+                              title="Share via WhatsApp"
+                              style={{ padding: '4px 7px', color: '#25D366', minWidth: 36 }}>
+                              {whatsappLoading === inv.id ? <Spinner size="sm" /> : (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.848L.057 23.572a.5.5 0 0 0 .61.61l5.724-1.475A11.946 11.946 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.66-.523-5.174-1.432l-.368-.219-3.822.984.997-3.736-.24-.386A9.943 9.943 0 0 1 2 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/>
+                                  </svg>
+                                </span>
+                              )}
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -354,11 +435,111 @@ export default function Invoices() {
               disabled={sendingEmail === detail.id}>
               {sendingEmail === detail.id ? 'Sending…' : 'Send Email'}
             </button>
-            <button className="btn btn-secondary" onClick={() => handleSendWhatsApp(detail)}>WhatsApp</button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => handleSendWhatsApp(detail)}
+              disabled={whatsappLoading === detail.id}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#25D366', borderColor: '#25D366' }}
+            >
+              {whatsappLoading === detail.id ? <Spinner size="sm" /> : (
+                <>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.848L.057 23.572a.5.5 0 0 0 .61.61l5.724-1.475A11.946 11.946 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.66-.523-5.174-1.432l-.368-.219-3.822.984.997-3.736-.24-.386A9.943 9.943 0 0 1 2 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/>
+                  </svg>
+                  Share via WhatsApp
+                </>
+              )}
+            </button>
             <button className="btn btn-secondary" onClick={() => setDetail(null)}>Close</button>
           </div>
         </Modal>
       )}
+
+      {/* ══ WhatsApp Share Modal ══════════════════════════════════════════════ */}
+      {whatsappModal && (() => {
+        const { inv, mobile, pdfBlobUrl } = whatsappModal
+        const fmt2 = (n: any) => `₹${(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+        return (
+          <Modal title="Share Invoice via WhatsApp" onClose={() => { setWhatsappModal(null); if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl) }} size="sm">
+            {/* How it works */}
+            <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
+              <div style={{ fontWeight: 700, color: '#166534', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.848L.057 23.572a.5.5 0 0 0 .61.61l5.724-1.475A11.946 11.946 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.66-.523-5.174-1.432l-.368-.219-3.822.984.997-3.736-.24-.386A9.943 9.943 0 0 1 2 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/></svg>
+                How it works
+              </div>
+              <div style={{ color: '#15803D', lineHeight: 1.6 }}>
+                <div>① PDF opens in a new tab — <strong>save or download it</strong></div>
+                <div>② WhatsApp opens with a pre-filled message</div>
+                <div>③ <strong>Attach the PDF</strong> in WhatsApp and hit Send</div>
+              </div>
+            </div>
+
+            {/* Invoice summary */}
+            <div style={{ background: '#F8FAFC', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
+                <div><span style={{ color: '#94A3B8', fontSize: 11 }}>Invoice #</span><div style={{ fontWeight: 700, fontFamily: 'monospace' }}>{inv.invoice_number || '—'}</div></div>
+                <div><span style={{ color: '#94A3B8', fontSize: 11 }}>Customer</span><div style={{ fontWeight: 600 }}>{inv.customer_name || '—'}</div></div>
+                <div><span style={{ color: '#94A3B8', fontSize: 11 }}>Amount</span><div style={{ fontWeight: 700, color: '#059669' }}>{fmt2(inv.total_amount)}</div></div>
+                <div><span style={{ color: '#94A3B8', fontSize: 11 }}>Status</span><div style={{ fontWeight: 600 }}>{inv.status || 'GENERATED'}</div></div>
+              </div>
+            </div>
+
+            {/* Phone number */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 6 }}>
+                Customer WhatsApp Number
+              </label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#64748B', background: '#F1F5F9', padding: '6px 10px', borderRadius: 6 }}>+91</span>
+                <input
+                  className="input"
+                  type="tel"
+                  maxLength={10}
+                  placeholder="10-digit mobile number"
+                  value={mobile.replace(/^91/, '').slice(-10)}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g, '').slice(0, 10)
+                    setWhatsappModal(prev => prev ? { ...prev, mobile: v } : null)
+                  }}
+                  style={{ flex: 1, fontWeight: 700, letterSpacing: 1, fontSize: 15 }}
+                  autoFocus
+                />
+              </div>
+              {!mobile && (
+                <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 4 }}>
+                  ⚠ No mobile number found — you can enter it manually above
+                </div>
+              )}
+            </div>
+
+            {/* PDF status */}
+            {pdfBlobUrl ? (
+              <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, padding: '8px 14px', marginBottom: 16, fontSize: 12, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 8 }}>
+                ✅ PDF ready — will open in a new tab when you click Send
+              </div>
+            ) : (
+              <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '8px 14px', marginBottom: 16, fontSize: 12, color: '#92400E', display: 'flex', alignItems: 'center', gap: 8 }}>
+                ⚠ PDF could not be prepared — WhatsApp will still open with the message text
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => openWhatsApp(mobile, inv, pdfBlobUrl)}
+                style={{ background: 'linear-gradient(135deg,#128C7E,#25D366)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.848L.057 23.572a.5.5 0 0 0 .61.61l5.724-1.475A11.946 11.946 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.66-.523-5.174-1.432l-.368-.219-3.822.984.997-3.736-.24-.386A9.943 9.943 0 0 1 2 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/></svg>
+                Open WhatsApp &amp; Send
+              </button>
+              <button className="btn btn-secondary" onClick={() => { setWhatsappModal(null); if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl) }}>
+                Cancel
+              </button>
+            </div>
+          </Modal>
+        )
+      })()}
     </div>
   )
 }

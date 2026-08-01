@@ -72,9 +72,10 @@ export function QBadge({ status }: { status: string }) {
 // ServiceSearchPanel — search & add a service to an appliance
 // ══════════════════════════════════════════════════════════════════════════════
 function ServiceSearchPanel({
-  quotationId, quotationStatus, bookingCity, applianceLabel, onAdded, onCancel,
+  quotationId, quotationStatus, bookingCity, applianceLabel, bookingDomainId, onAdded, onCancel,
 }: {
   quotationId: string; quotationStatus?: string; bookingCity: string; applianceLabel: string;
+  bookingDomainId?: string;
   onAdded: () => void; onCancel: () => void;
 }) {
   const [query, setQuery] = useState('')
@@ -85,6 +86,24 @@ function ServiceSearchPanel({
   const [addedNames, setAddedNames] = useState<string[]>([])
 
   const [hasSearched, setHasSearched] = useState(false)
+
+  // ── Inline "Add New Service" state ──
+  const [showAddSvc, setShowAddSvc] = useState(false)
+  const [categories, setCategories] = useState<any[]>([])
+  const [newSvcForm, setNewSvcForm] = useState({
+    name: '', category_id: '', base_price: '', gst_percent: '18',
+    description: '', is_visible: false,
+  })
+  const [newSvcSaving, setNewSvcSaving] = useState(false)
+  const [newSvcErr, setNewSvcErr] = useState('')
+  const [newSvcSuccess, setNewSvcSuccess] = useState('')
+
+  // Load categories once when the panel mounts
+  useEffect(() => {
+    servicesAPI.categories()
+      .then(r => setCategories(r.data?.data?.items || r.data?.data || []))
+      .catch(() => {})
+  }, [])
 
   const search = async (q?: string) => {
     const term = (q ?? query).trim()
@@ -187,8 +206,199 @@ function ServiceSearchPanel({
           ))}
         </div>
       )}
-      {results.length === 0 && hasSearched && !searching && (
-        <div style={{ fontSize: 12, color: '#94A3B8', textAlign: 'center', padding: 8 }}>No services found for "{query}" — check service is active in Services page</div>
+      {results.length === 0 && hasSearched && !searching && !showAddSvc && (
+        <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '12px 14px', marginTop: 4 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#92400E', marginBottom: 6 }}>
+            No service found for "{query}"
+          </div>
+          <div style={{ fontSize: 12, color: '#92400E', marginBottom: 10 }}>
+            You can create it now — it will be linked to this booking's domain and
+            {' '}<strong>not shown on the website</strong> (quotation-only service).
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ background: 'linear-gradient(135deg,#059669,#10B981)', fontSize: 12 }}
+            onClick={() => {
+              setNewSvcForm(f => ({ ...f, name: query }))
+              setShowAddSvc(true)
+            }}
+          >
+            ➕ Add "{query}" as New Service
+          </button>
+        </div>
+      )}
+
+      {/* ── Inline Add New Service panel ── */}
+      {showAddSvc && (
+        <div style={{ background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 10, padding: 14, marginTop: 8 }}>
+          <div style={{ fontWeight: 800, fontSize: 13, color: '#166534', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>
+              ➕ Create New Service
+              {bookingDomainId && (
+                <span style={{ fontWeight: 400, fontSize: 11, color: '#15803D', marginLeft: 8 }}>
+                  — will be linked to booking's domain
+                </span>
+              )}
+            </span>
+            <button className="btn btn-secondary btn-sm" style={{ fontSize: 10 }} onClick={() => { setShowAddSvc(false); setNewSvcErr(''); setNewSvcSuccess('') }}>✕ Cancel</button>
+          </div>
+
+          {/* is_visible notice */}
+          <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 12 }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={newSvcForm.is_visible}
+                onChange={e => setNewSvcForm(f => ({ ...f, is_visible: e.target.checked }))}
+                style={{ marginTop: 2, accentColor: '#1D4ED8' }}
+              />
+              <span style={{ color: '#92400E' }}>
+                <strong>Show on website</strong> — uncheck to keep this service
+                {' '}<strong>internal/quotation-only</strong> (recommended for one-off or custom services)
+              </span>
+            </label>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div style={{ gridColumn: '1/-1' }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 4 }}>Service Name *</label>
+              <input
+                className="input"
+                placeholder="e.g. AC Gas Top-up (Custom)"
+                value={newSvcForm.name}
+                onChange={e => setNewSvcForm(f => ({ ...f, name: e.target.value }))}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 4 }}>Category *</label>
+              <select
+                className="input"
+                value={newSvcForm.category_id}
+                onChange={e => setNewSvcForm(f => ({ ...f, category_id: e.target.value }))}
+              >
+                <option value="">— Select category —</option>
+                {categories.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 4 }}>Base Price (₹) *</label>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                step={0.01}
+                placeholder="e.g. 599"
+                value={newSvcForm.base_price}
+                onChange={e => setNewSvcForm(f => ({ ...f, base_price: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 4 }}>GST %</label>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                placeholder="e.g. 18"
+                value={newSvcForm.gst_percent}
+                onChange={e => setNewSvcForm(f => ({ ...f, gst_percent: e.target.value }))}
+              />
+            </div>
+            <div style={{ gridColumn: '1/-1' }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 4 }}>
+                Description <span style={{ fontWeight: 400, color: '#94A3B8' }}>(optional)</span>
+              </label>
+              <input
+                className="input"
+                placeholder="Brief description"
+                value={newSvcForm.description}
+                onChange={e => setNewSvcForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          {newSvcErr && (
+            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', borderRadius: 6, padding: '7px 12px', fontSize: 12, marginBottom: 8 }}>
+              ⚠ {newSvcErr}
+            </div>
+          )}
+          {newSvcSuccess && (
+            <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', color: '#166534', borderRadius: 6, padding: '7px 12px', fontSize: 12, marginBottom: 8 }}>
+              ✅ {newSvcSuccess}
+            </div>
+          )}
+
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ background: 'linear-gradient(135deg,#059669,#10B981)', fontSize: 12 }}
+            disabled={newSvcSaving}
+            onClick={async () => {
+              if (!newSvcForm.name.trim()) { setNewSvcErr('Service name is required'); return }
+              if (!newSvcForm.category_id) { setNewSvcErr('Please select a category'); return }
+              if (!newSvcForm.base_price) { setNewSvcErr('Base price is required'); return }
+              setNewSvcSaving(true); setNewSvcErr(''); setNewSvcSuccess('')
+              try {
+                const payload: any = {
+                  name: newSvcForm.name.trim(),
+                  category_id: newSvcForm.category_id,
+                  base_price: parseFloat(newSvcForm.base_price),
+                  gst_percent: parseFloat(newSvcForm.gst_percent) || 18,
+                  description: newSvcForm.description.trim() || undefined,
+                  is_visible: newSvcForm.is_visible,
+                  is_active: true,
+                }
+                // If booking has a domain, auto-link via POST /services with domain_id
+                if (bookingDomainId) {
+                  payload.domain_id = bookingDomainId
+                }
+                const svcRes = await servicesAPI.create(payload)
+                const newSvc = svcRes.data.data
+                const msg = bookingDomainId
+                  ? `"${newSvc.name}" created & linked to domain${newSvcForm.is_visible ? '' : ' (hidden from website)'}`
+                  : `"${newSvc.name}" created${newSvcForm.is_visible ? '' : ' (hidden from website)'}`
+                setNewSvcSuccess(msg)
+
+                // Now add this new service to the quotation immediately
+                let unitPrice = parseFloat(newSvcForm.base_price) || 0
+                if (bookingCity) {
+                  try {
+                    const cpRes = await servicesAPI.cityPrices(newSvc.id)
+                    const cityPrices: any[] = cpRes.data.data || []
+                    const cityLower = bookingCity.toLowerCase().trim()
+                    const match = cityPrices.find((cp: any) =>
+                      cp.is_available &&
+                      (cp.city_name?.toLowerCase().trim() === cityLower ||
+                        cp.city_name?.toLowerCase().includes(cityLower) ||
+                        cityLower.includes(cp.city_name?.toLowerCase().trim() || ''))
+                    )
+                    if (match) unitPrice = match.price
+                  } catch { }
+                }
+                await quotationsAPI.addService(quotationId, {
+                  service_id: newSvc.id,
+                  quantity: 1,
+                  unit_price: unitPrice,
+                  appliance_label: applianceLabel || undefined,
+                })
+                setAddedNames(n => [...n, newSvc.name])
+                onAdded()
+                // Reset for next service
+                setShowAddSvc(false)
+                setNewSvcForm({ name: '', category_id: '', base_price: '', gst_percent: '18', description: '', is_visible: false })
+                setQuery(''); setResults([]); setHasSearched(false)
+              } catch (ex: any) {
+                const d = ex.response?.data?.detail
+                setNewSvcErr(Array.isArray(d) ? d.map((x: any) => x.msg || '').join('; ') : (d || 'Failed to create service'))
+              } finally { setNewSvcSaving(false) }
+            }}
+          >
+            {newSvcSaving ? <Spinner size="sm" /> : '✅ Create & Add to Quotation'}
+          </button>
+        </div>
       )}
     </div>
   )
@@ -884,11 +1094,11 @@ function RepeatComplaintBanner({
 // ApplianceCard — one machine card with its services + parts
 // ══════════════════════════════════════════════════════════════════════════════
 function ApplianceCard({
-  label, services, parts, canEdit, quotationId, quotationStatus, bookingCity, hasTechnician,
+  label, services, parts, canEdit, quotationId, quotationStatus, bookingCity, bookingDomainId, hasTechnician,
   repeatBooking, isRepeat, onReload, onRemove, onRepeatToggle,
 }: {
   label: string; services: any[]; parts: any[]; canEdit: boolean;
-  quotationId: string; quotationStatus: string; bookingCity: string; hasTechnician: boolean;
+  quotationId: string; quotationStatus: string; bookingCity: string; bookingDomainId?: string; hasTechnician: boolean;
   repeatBooking: any; isRepeat: boolean;
   onReload: () => void; onRemove: (label: string) => void; onRepeatToggle: (label: string, isRepeat: boolean) => void;
 }) {
@@ -1083,6 +1293,7 @@ function ApplianceCard({
           {openPanel === 'service'
             ? <ServiceSearchPanel
                 quotationId={quotationId} quotationStatus={quotationStatus} bookingCity={bookingCity}
+                bookingDomainId={bookingDomainId}
                 applianceLabel={label}
                 onAdded={() => { onReload(); }}
                 onCancel={() => setOpenPanel(null)}
@@ -1512,6 +1723,7 @@ export function QuotationEditor({
               quotationId={q.id}
               quotationStatus={q?.status || ''}
               bookingCity={bookingDetail?.city || ''}
+              bookingDomainId={bookingDetail?.domain_id || q?.domain_id || ''}
               hasTechnician={hasTechnician}
               repeatBooking={meta.repeatBooking}
               isRepeat={meta.isRepeat}
