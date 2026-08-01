@@ -691,6 +691,7 @@ export default function Customers() {
   const [selected, setSelected]   = useState<any>(null)   // customer for detail modal
   const [showCreate, setShowCreate] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<any>(null)   // customer pending permanent delete
 
   // Permanent delete (with Firebase Auth cleanup) is restricted to Admin/Super Admin --
   // this only hides the button; the backend enforces the same restriction independently.
@@ -721,17 +722,13 @@ export default function Customers() {
     setBookingAppliances(appliances)
   }
 
-  const permanentlyDeleteCustomer = async (customer: any) => {
-    const confirmed = confirm(
-      `Permanently delete "${customer.name}" (${customer.customer_code})?\n\n` +
-      `This deletes their account AND every booking, quotation, invoice, payment, ` +
-      `warranty, rating, AMC subscription, and CRM note linked to them -- plus their ` +
-      `Firebase Auth sign-in (Google login). THIS CANNOT BE UNDONE. There is no backup ` +
-      `or recovery once you confirm.\n\n` +
-      `If you just want to hide this customer while keeping their history, cancel this ` +
-      `and use the regular Delete (deactivate) action instead.`
-    )
-    if (!confirmed) return
+  const permanentlyDeleteCustomer = (customer: any) => {
+    // Open the history-preview delete modal instead of browser confirm()
+    setDeleteTarget(customer)
+  }
+
+  const confirmPermanentDelete = async (customer: any) => {
+    setDeleteTarget(null)
     setDeletingId(customer.id)
     try {
       const res = await customersAPI.deletePermanent(customer.id)
@@ -835,6 +832,175 @@ export default function Customers() {
           onDone={fetchCustomers}
         />
       )}
+
+      {/* Permanent delete confirmation modal with history preview */}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          customer={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => confirmPermanentDelete(deleteTarget)}
+        />
+      )}
     </div>
+  )
+}
+
+// ─── Delete Confirmation Modal with Customer History ──────────────────────────
+function DeleteConfirmModal({
+  customer,
+  onClose,
+  onConfirm,
+}: {
+  customer: any
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  const [history, setHistory] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [confirming, setConfirming] = useState(false)
+
+  useEffect(() => {
+    customersAPI.history(customer.id)
+      .then(r => setHistory(r.data?.data?.items || []))
+      .catch(() => setHistory([]))
+      .finally(() => setLoading(false))
+  }, [customer.id])
+
+  const handleConfirm = async () => {
+    setConfirming(true)
+    onConfirm()
+  }
+
+  const totalAmount = history.reduce((sum, b) => sum + (b.total_amount || 0), 0)
+
+  return (
+    <Modal onClose={onClose} title="Permanently Delete Customer" size="lg">
+      {/* Warning banner */}
+      <div style={{
+        background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8,
+        padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-start',
+      }}>
+        <span style={{ fontSize: 20 }}>⚠️</span>
+        <div>
+          <strong>This action is irreversible.</strong>
+          <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>
+            All data for <strong>{customer.name}</strong> will be permanently deleted including
+            bookings, invoices, payments, quotations, addresses, appliances, and warranty records.
+          </div>
+        </div>
+      </div>
+
+      {/* Customer summary */}
+      <div style={{
+        background: '#f8f9fa', borderRadius: 8, padding: '12px 16px', marginBottom: 20,
+        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 14,
+      }}>
+        <div><span style={{ color: '#888' }}>Name: </span><strong>{customer.name}</strong></div>
+        <div><span style={{ color: '#888' }}>Mobile: </span><strong>{customer.mobile}</strong></div>
+        {customer.code && <div><span style={{ color: '#888' }}>Code: </span><strong>{customer.code}</strong></div>}
+        {customer.email && <div><span style={{ color: '#888' }}>Email: </span><strong>{customer.email}</strong></div>}
+      </div>
+
+      {/* Booking history */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10, color: '#333' }}>
+          Booking History
+          {!loading && (
+            <span style={{
+              marginLeft: 8, background: history.length > 0 ? '#dc3545' : '#28a745',
+              color: '#fff', borderRadius: 12, padding: '2px 8px', fontSize: 12, fontWeight: 500,
+            }}>
+              {history.length} booking{history.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 24 }}><Spinner /></div>
+        ) : history.length === 0 ? (
+          <div style={{
+            background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8,
+            padding: '12px 16px', fontSize: 13, color: '#166534',
+          }}>
+            ✅ No bookings found — safe to delete.
+          </div>
+        ) : (
+          <>
+            <div style={{
+              maxHeight: 220, overflowY: 'auto', border: '1px solid #e0e0e0',
+              borderRadius: 8, fontSize: 13,
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f5f5f5', position: 'sticky', top: 0 }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e0e0e0' }}>Booking #</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e0e0e0' }}>Date</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e0e0e0' }}>Appliance</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid #e0e0e0' }}>Status</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid #e0e0e0' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((b, i) => (
+                    <tr key={b.id} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0' }}>
+                        <strong>{b.booking_number || b.id?.slice(0, 8)}</strong>
+                      </td>
+                      <td style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0', color: '#666' }}>
+                        {b.scheduled_date ? new Date(b.scheduled_date).toLocaleDateString('en-IN') : '—'}
+                      </td>
+                      <td style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0' }}>
+                        {[b.appliance_brand, b.appliance_model].filter(Boolean).join(' ') || '—'}
+                      </td>
+                      <td style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0' }}>
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+                          background: b.status === 'COMPLETED' ? '#d1fae5' : b.status === 'CANCELLED' ? '#fee2e2' : '#fef3c7',
+                          color: b.status === 'COMPLETED' ? '#065f46' : b.status === 'CANCELLED' ? '#991b1b' : '#92400e',
+                        }}>
+                          {b.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0', textAlign: 'right', fontWeight: 500 }}>
+                        {b.total_amount ? `₹${Number(b.total_amount).toLocaleString('en-IN')}` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{
+              marginTop: 8, padding: '8px 12px', background: '#fff3cd',
+              borderRadius: 6, fontSize: 13, textAlign: 'right', fontWeight: 600,
+            }}>
+              Total booking value: ₹{totalAmount.toLocaleString('en-IN')}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Action buttons */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, paddingTop: 8, borderTop: '1px solid #eee' }}>
+        <button
+          className="btn btn-secondary"
+          onClick={onClose}
+          disabled={confirming}
+          style={{ minWidth: 100 }}
+        >
+          Cancel
+        </button>
+        <button
+          className="btn"
+          onClick={handleConfirm}
+          disabled={confirming || loading}
+          style={{
+            minWidth: 160, background: '#dc3545', color: '#fff',
+            border: 'none', cursor: confirming ? 'not-allowed' : 'pointer', opacity: confirming ? 0.7 : 1,
+          }}
+        >
+          {confirming ? 'Deleting…' : '🗑️ Permanently Delete'}
+        </button>
+      </div>
+    </Modal>
   )
 }
