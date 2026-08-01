@@ -54,7 +54,7 @@ function CreateWarrantyModal({ onClose, onSaved }: { onClose: () => void; onSave
   }
 
   return (
-    <Modal isOpen onClose={onClose} title="Create Warranty">
+    <Modal onClose={onClose} title="Create Warranty">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <label className="label">Search Customer *</label>
@@ -100,7 +100,7 @@ function CreateWarrantyModal({ onClose, onSaved }: { onClose: () => void; onSave
         </div>
         {error && <div className="error-msg">{error}</div>}
         <button className="btn-primary" onClick={save} disabled={saving}>
-          {saving ? <Spinner size={16} /> : 'Create Warranty'}
+          {saving ? <Spinner size='sm' /> : 'Create Warranty'}
         </button>
       </div>
     </Modal>
@@ -128,7 +128,7 @@ function ClaimActionModal({ claim, action, onClose, onSaved }: {
   }
 
   return (
-    <Modal isOpen onClose={onClose} title={action === 'approve' ? '✅ Approve Claim' : '❌ Reject Claim'}>
+    <Modal onClose={onClose} title={action === 'approve' ? '✅ Approve Claim' : '❌ Reject Claim'}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ background: '#F8FAFC', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#334155' }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>{claim.description}</div>
@@ -149,7 +149,7 @@ function ClaimActionModal({ claim, action, onClose, onSaved }: {
             background: action === 'approve' ? '#059669' : '#DC2626', color: '#fff',
             opacity: (saving || (action === 'reject' && !notes.trim())) ? 0.5 : 1,
           }}>
-          {saving ? <Spinner size={16} /> : action === 'approve' ? 'Approve Claim' : 'Reject Claim'}
+          {saving ? <Spinner size='sm' /> : action === 'approve' ? 'Approve Claim' : 'Reject Claim'}
         </button>
       </div>
     </Modal>
@@ -263,7 +263,7 @@ export default function Warranty() {
                     })}
                 </tbody>
               </table>
-              {pages > 1 && <Pagination page={page} pages={pages} onChange={setPage} />}
+              {pages > 1 && <Pagination page={page} pages={pages} onPage={setPage} />}
             </>
           )}
         </div>
@@ -311,7 +311,7 @@ export default function Warranty() {
                     ))}
                 </tbody>
               </table>
-              {claimPages > 1 && <Pagination page={claimPage} pages={claimPages} onChange={setClaimPage} />}
+              {claimPages > 1 && <Pagination page={claimPage} pages={claimPages} onPage={setClaimPage} />}
             </>
           )}
         </div>

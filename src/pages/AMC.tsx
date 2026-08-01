@@ -35,7 +35,7 @@ function PlanModal({ plan, onClose, onSaved }: { plan: any | null; onClose: () =
   }
 
   return (
-    <Modal isOpen onClose={onClose} title={plan ? 'Edit AMC Plan' : 'Create AMC Plan'}>
+    <Modal onClose={onClose} title={plan ? 'Edit AMC Plan' : 'Create AMC Plan'}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <label className="label">Plan Name *</label>
@@ -71,7 +71,7 @@ function PlanModal({ plan, onClose, onSaved }: { plan: any | null; onClose: () =
         </div>
         {error && <div className="error-msg">{error}</div>}
         <button className="btn-primary" onClick={save} disabled={saving}>
-          {saving ? <Spinner size={16} /> : plan ? 'Save Changes' : 'Create Plan'}
+          {saving ? <Spinner size='sm' /> : plan ? 'Save Changes' : 'Create Plan'}
         </button>
       </div>
     </Modal>
@@ -110,7 +110,7 @@ function PurchaseModal({ plans, onClose, onSaved }: { plans: any[]; onClose: () 
   }
 
   return (
-    <Modal isOpen onClose={onClose} title="Purchase AMC for Customer">
+    <Modal onClose={onClose} title="Purchase AMC for Customer">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <label className="label">Search Customer</label>
@@ -144,7 +144,7 @@ function PurchaseModal({ plans, onClose, onSaved }: { plans: any[]; onClose: () 
         </div>
         {error && <div className="error-msg">{error}</div>}
         <button className="btn-primary" onClick={save} disabled={saving}>
-          {saving ? <Spinner size={16} /> : 'Purchase AMC'}
+          {saving ? <Spinner size='sm' /> : 'Purchase AMC'}
         </button>
       </div>
     </Modal>
