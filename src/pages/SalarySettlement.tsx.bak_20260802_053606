@@ -11,28 +11,20 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 
 function statusBadge(status: string | null) {
   if (!status) return (
-    <span style={{
-      fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-      background: 'linear-gradient(135deg,#F1F5F9,#E2E8F0)', color: '#94A3B8',
-      border: '1px solid #CBD5E1', letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 4
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#94A3B8', display: 'inline-block' }} />
+    <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+      background: '#F1F5F9', color: '#94A3B8', border: '1px solid #E2E8F0' }}>
       Not Generated
     </span>
   )
-  const cfg: Record<string, { bg: string; color: string; border: string; dot: string }> = {
-    GENERATED:    { bg: 'linear-gradient(135deg,#DBEAFE,#EFF6FF)', color: '#1D4ED8', border: '#93C5FD', dot: '#3B82F6' },
-    PAID:         { bg: 'linear-gradient(135deg,#D1FAE5,#ECFDF5)', color: '#065F46', border: '#6EE7B7', dot: '#10B981' },
-    SENT_TO_BANK: { bg: 'linear-gradient(135deg,#DDD6FE,#F5F3FF)', color: '#5B21B6', border: '#A78BFA', dot: '#8B5CF6' },
+  const cfg: Record<string, { bg: string; color: string; border: string }> = {
+    GENERATED:    { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' },
+    PAID:         { bg: '#ECFDF5', color: '#065F46', border: '#6EE7B7' },
+    SENT_TO_BANK: { bg: '#F0FDF4', color: '#14532D', border: '#86EFAC' },
   }
-  const c = cfg[status] || { bg: 'linear-gradient(135deg,#F1F5F9,#E2E8F0)', color: '#475569', border: '#CBD5E1', dot: '#94A3B8' }
+  const c = cfg[status] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' }
   return (
-    <span style={{
-      fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-      background: c.bg, color: c.color, border: `1px solid ${c.border}`,
-      letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 5
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: c.dot, display: 'inline-block' }} />
+    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+      background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>
       {status.replace(/_/g, ' ')}
     </span>
   )
@@ -80,68 +72,6 @@ function StatPill({ icon, label, value, color = '#1B4FD8', bg = '#EFF6FF' }: { i
       <div>
         <div style={{ fontSize: 11, color: '#64748B', fontWeight: 500 }}>{label}</div>
         <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginTop: 1 }}>{value}</div>
-      </div>
-    </div>
-  )
-}
-
-// ── Premium Summary Card ──────────────────────────────────────────────────────
-function SummaryCard({
-  icon, label, value, sub, gradient, iconBg, textColor, accentColor,
-}: {
-  icon: string; label: string; value: string | number; sub?: string
-  gradient: string; iconBg: string; textColor: string; accentColor: string
-}) {
-  return (
-    <div style={{
-      background: 'white',
-      borderRadius: 16,
-      padding: '20px 22px',
-      border: '1px solid #E2E8F0',
-      position: 'relative',
-      overflow: 'hidden',
-      boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-      transition: 'transform 0.18s, box-shadow 0.18s',
-    }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 28px rgba(0,0,0,0.10)'
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'
-        ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'
-      }}
-    >
-      {/* gradient accent bar top */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: 4,
-        background: gradient, borderRadius: '16px 16px 0 0',
-      }} />
-      {/* decorative circle */}
-      <div style={{
-        position: 'absolute', top: -20, right: -20,
-        width: 100, height: 100, borderRadius: '50%',
-        background: accentColor + '12',
-      }} />
-      <div style={{ position: 'relative' }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 12, background: iconBg,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 22, marginBottom: 14, boxShadow: `0 4px 12px ${accentColor}30`,
-        }}>
-          {icon}
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
-          {label}
-        </div>
-        <div style={{ fontSize: 26, fontWeight: 900, color: textColor, letterSpacing: '-0.5px', lineHeight: 1 }}>
-          {value}
-        </div>
-        {sub && (
-          <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 6, fontWeight: 500 }}>
-            {sub}
-          </div>
-        )}
       </div>
     </div>
   )
@@ -534,162 +464,68 @@ export default function SalarySettlement() {
 
   return (
     <div className="page-container">
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
-        .ss-row { transition: background 0.15s; }
-        .ss-row:hover td { background: #F8FAFC !important; }
-        .ss-action-btn { transition: all 0.15s; }
-        .ss-action-btn:hover { filter: brightness(0.92); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       <Toast toasts={toasts} onRemove={removeToast} />
 
-      {/* ── Page Header ── */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 10,
-                background: 'linear-gradient(135deg,#1B4FD8,#7C3AED)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-                boxShadow: '0 4px 12px rgba(27,79,216,0.3)',
-              }}>
-                💰
-              </div>
-              <div>
-                <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.3px' }}>
-                  Salary Settlement
-                </h1>
-                <p style={{ fontSize: 13, color: '#64748B', marginTop: 1 }}>
-                  Manage monthly salary for salary-group technicians
-                </p>
-              </div>
-            </div>
-          </div>
-          {/* Month / Year Pickers */}
-          <div style={{
-            display: 'flex', gap: 8, alignItems: 'center',
-            background: 'white', padding: '10px 14px', borderRadius: 12,
-            border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-          }}>
-            <span style={{ fontSize: 13, color: '#94A3B8', fontWeight: 600 }}>📅</span>
-            <select
-              className="input"
-              style={{ width: 130, border: 'none', padding: '4px 8px', boxShadow: 'none', background: 'transparent', fontWeight: 600, color: '#334155' }}
-              value={month}
-              onChange={e => setMonth(Number(e.target.value))}
-            >
-              {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-            </select>
-            <select
-              className="input"
-              style={{ width: 80, border: 'none', padding: '4px 8px', boxShadow: 'none', background: 'transparent', fontWeight: 600, color: '#334155' }}
-              value={year}
-              onChange={e => setYear(Number(e.target.value))}
-            >
-              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Salary Settlement</h1>
+          <p className="page-subtitle">Manage monthly salary for salary-group technicians</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select className="input" style={{ width: 140 }} value={month} onChange={e => setMonth(Number(e.target.value))}>
+            {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+          </select>
+          <select className="input" style={{ width: 94 }} value={year} onChange={e => setYear(Number(e.target.value))}>
+            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
         </div>
       </div>
 
-      {/* ── Premium Summary Cards ── */}
       {!loading && list.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 28, animation: 'fadeIn 0.4s ease' }}>
-          <SummaryCard
-            icon="👥"
-            label="Total Technicians"
-            value={list.length}
-            sub="Salary group members"
-            gradient="linear-gradient(90deg,#1B4FD8,#3B82F6)"
-            iconBg="linear-gradient(135deg,#EFF6FF,#DBEAFE)"
-            textColor="#1E3A8A"
-            accentColor="#1B4FD8"
-          />
-          <SummaryCard
-            icon="⏳"
-            label="Pending"
-            value={totalPending}
-            sub="Not yet generated"
-            gradient="linear-gradient(90deg,#F59E0B,#FBBF24)"
-            iconBg="linear-gradient(135deg,#FFFBEB,#FEF3C7)"
-            textColor="#92400E"
-            accentColor="#F59E0B"
-          />
-          <SummaryCard
-            icon="✅"
-            label="Generated / Paid"
-            value={totalGenerated + totalPaid}
-            sub={`${totalPaid} paid · ${totalGenerated} generated`}
-            gradient="linear-gradient(90deg,#059669,#10B981)"
-            iconBg="linear-gradient(135deg,#ECFDF5,#D1FAE5)"
-            textColor="#064E3B"
-            accentColor="#059669"
-          />
-          <SummaryCard
-            icon="💸"
-            label="Total Payable"
-            value={INR(totalNetSalary)}
-            sub="Net salary this month"
-            gradient="linear-gradient(90deg,#7C3AED,#A78BFA)"
-            iconBg="linear-gradient(135deg,#F5F3FF,#EDE9FE)"
-            textColor="#4C1D95"
-            accentColor="#7C3AED"
-          />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+          <div className="stat-card" style={{ borderLeft: '4px solid #1B4FD8' }}>
+            <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Technicians</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', marginTop: 6 }}>{list.length}</div>
+            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>Salary group members</div>
+          </div>
+          <div className="stat-card" style={{ borderLeft: '4px solid #F59E0B' }}>
+            <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#D97706', marginTop: 6 }}>{totalPending}</div>
+            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>Not yet generated</div>
+          </div>
+          <div className="stat-card" style={{ borderLeft: '4px solid #059669' }}>
+            <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Generated / Paid</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#059669', marginTop: 6 }}>{totalGenerated + totalPaid}</div>
+            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>{totalPaid} paid · {totalGenerated} generated</div>
+          </div>
+          <div className="stat-card" style={{ borderLeft: '4px solid #7C3AED' }}>
+            <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Payable</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#7C3AED', marginTop: 6 }}>{INR(totalNetSalary)}</div>
+            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>Net salary this month</div>
+          </div>
         </div>
       )}
 
-      {/* ── Table / Loading / Empty ── */}
       {loading ? (
-        <div style={{ padding: 80, textAlign: 'center', background: 'white', borderRadius: 16, border: '1px solid #E2E8F0' }}>
-          <div style={{ width: 44, height: 44, border: '3px solid #E2E8F0', borderTopColor: '#1B4FD8',
-            borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-          <div style={{ color: '#64748B', fontSize: 14, fontWeight: 500 }}>Loading salary technicians...</div>
+        <div style={{ padding: 60, textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, border: '3px solid #E2E8F0', borderTopColor: '#1B4FD8',
+            borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 14px' }} />
+          <div style={{ color: '#94A3B8', fontSize: 14 }}>Loading salary technicians...</div>
         </div>
       ) : list.length === 0 ? (
-        <div style={{ padding: 80, textAlign: 'center', background: 'white', borderRadius: 16, border: '1px solid #E2E8F0' }}>
-          <div style={{ fontSize: 52, marginBottom: 16 }}>💼</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#334155', marginBottom: 8 }}>No Salary Technicians Found</div>
-          <div style={{ fontSize: 14, color: '#94A3B8', maxWidth: 340, margin: '0 auto' }}>
-            Create a salary commission group and assign technicians to get started.
-          </div>
+        <div style={{ padding: 60, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 14 }}>💼</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: '#334155', marginBottom: 6 }}>No Salary Technicians Found</div>
+          <div style={{ fontSize: 13, color: '#94A3B8' }}>Create a salary commission group and assign technicians to get started.</div>
         </div>
       ) : (
-        <div style={{
-          background: 'white', borderRadius: 16, border: '1px solid #E2E8F0',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.06)', overflow: 'hidden',
-          animation: 'fadeIn 0.4s ease',
-        }}>
-          {/* table header bar */}
-          <div style={{
-            padding: '14px 20px',
-            background: 'linear-gradient(135deg,#F8FAFC,#F1F5F9)',
-            borderBottom: '1px solid #E2E8F0',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 15 }}>🧾</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
-                Technician Salary List
-              </span>
-              <span style={{
-                fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20,
-                background: '#EFF6FF', color: '#1B4FD8', border: '1px solid #BFDBFE',
-              }}>
-                {list.length} technician{list.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <div style={{ fontSize: 12, color: '#94A3B8', fontWeight: 500 }}>
-              {MONTHS[month-1]} {year}
-            </div>
-          </div>
-
+        <div className="card" style={{ overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
-            <table className="data-table" style={{ fontSize: 13 }}>
+            <table className="data-table">
               <thead>
                 <tr>
-                  <th style={{ width: 40, paddingLeft: 20 }}>#</th>
+                  <th style={{ width: 40 }}>#</th>
                   <th>Technician</th>
                   <th>Group</th>
                   <th>Monthly Salary</th>
@@ -698,177 +534,78 @@ export default function SalarySettlement() {
                   <th style={{ textAlign: 'center' }}>Hours</th>
                   <th>Net Salary</th>
                   <th>Status</th>
-                  <th style={{ width: 210, paddingRight: 20 }}>Actions</th>
+                  <th style={{ width: 200 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.map((row, i) => (
-                  <tr key={row.technician_id} className="ss-row">
-                    <td style={{ color: '#CBD5E1', fontSize: 12, fontWeight: 700, paddingLeft: 20 }}>{i+1}</td>
-
-                    {/* Technician */}
+                  <tr key={row.technician_id}>
+                    <td style={{ color: '#94A3B8', fontSize: 12 }}>{i+1}</td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{
-                          width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                          background: `linear-gradient(135deg,${['#1B4FD8','#059669','#7C3AED','#D97706','#EF4444'][i % 5]},${['#3B82F6','#10B981','#A78BFA','#FBBF24','#F87171'][i % 5]})`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 13, fontWeight: 800, color: 'white',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                        }}>
-                          {(row.technician_name || '?')[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 13, color: '#0F172A' }}>{row.technician_name}</div>
-                          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>{row.technician_mobile}</div>
-                        </div>
-                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#0F172A' }}>{row.technician_name}</div>
+                      <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>{row.technician_mobile}</div>
                     </td>
-
-                    {/* Group */}
                     <td>
-                      <span style={{
-                        fontSize: 11, fontWeight: 600, color: '#475569',
-                        background: 'linear-gradient(135deg,#F8FAFC,#F1F5F9)',
-                        padding: '4px 10px', borderRadius: 8,
-                        border: '1px solid #E2E8F0',
-                      }}>
-                        {row.group_name}
-                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: '#475569', background: '#F1F5F9',
+                        padding: '3px 10px', borderRadius: 6 }}>{row.group_name}</span>
                     </td>
-
-                    {/* Monthly Salary */}
-                    <td>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: '#334155' }}>
-                        {INR(row.monthly_salary)}
-                      </span>
-                    </td>
-
-                    {/* Bookings */}
+                    <td style={{ fontWeight: 700, fontSize: 13, color: '#334155' }}>{INR(row.monthly_salary)}</td>
                     <td style={{ textAlign: 'center' }}>
-                      <span style={{
-                        fontWeight: 800, fontSize: 13, color: '#1B4FD8',
-                        background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)',
-                        padding: '3px 12px', borderRadius: 20, display: 'inline-block',
-                        border: '1px solid #BFDBFE', minWidth: 32, textAlign: 'center',
-                      }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: '#1B4FD8',
+                        background: '#EFF6FF', padding: '2px 10px', borderRadius: 20, display: 'inline-block' }}>
                         {row.total_bookings}
                       </span>
                     </td>
-
-                    {/* Attendance */}
                     <td style={{ textAlign: 'center' }}>
-                      <span style={{
-                        fontSize: 12, fontWeight: 700, color: '#059669',
-                        background: '#ECFDF5', padding: '3px 10px', borderRadius: 20,
-                        border: '1px solid #A7F3D0', display: 'inline-block',
-                      }}>
-                        {row.attendance_days}d
-                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#059669' }}>{row.attendance_days}d</span>
                     </td>
-
-                    {/* Hours */}
                     <td style={{ textAlign: 'center' }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>
-                        {row.total_hours_worked}h
-                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#64748B' }}>{row.total_hours_worked}h</span>
                     </td>
-
-                    {/* Net Salary */}
                     <td>
-                      {row.net_salary != null ? (
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: 14, color: '#059669' }}>
-                            {INR(row.net_salary)}
-                          </div>
-                          <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 1 }}>net pay</div>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#CBD5E1', fontWeight: 600 }}>—</span>
-                      )}
+                      <div style={{ fontWeight: 800, fontSize: 14, color: row.net_salary != null ? '#059669' : '#94A3B8' }}>
+                        {row.net_salary != null ? INR(row.net_salary) : '—'}
+                      </div>
                     </td>
-
-                    {/* Status */}
                     <td>{statusBadge(row.settlement_status)}</td>
-
-                    {/* Actions */}
-                    <td style={{ paddingRight: 20 }}>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {!row.settlement_id ? (
-                          <button
-                            className="ss-action-btn"
-                            onClick={() => openGenerate(row)}
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                              padding: '7px 14px',
-                              background: 'linear-gradient(135deg,#1B4FD8,#2563EB)',
-                              color: 'white', border: 'none', borderRadius: 9,
-                              fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                              boxShadow: '0 3px 10px rgba(27,79,216,0.35)',
-                            }}
-                          >
+                          <button onClick={() => openGenerate(row)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px',
+                              background: '#1B4FD8', color: 'white', border: 'none', borderRadius: 8,
+                              fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                             ⚡ Generate
                           </button>
                         ) : (
                           <>
-                            <button
-                              className="ss-action-btn"
-                              onClick={() => openView(row)}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 4,
-                                padding: '7px 12px',
-                                background: 'white', color: '#334155',
-                                border: '1px solid #E2E8F0', borderRadius: 9,
-                                fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-                              }}
-                            >
+                            <button onClick={() => openView(row)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+                                background: 'white', color: '#334155', border: '1px solid #E2E8F0',
+                                borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                               👁 View
                             </button>
                             {row.settlement_status === 'GENERATED' && (
-                              <button
-                                className="ss-action-btn"
-                                onClick={() => openEdit(row)}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                                  padding: '7px 12px',
-                                  background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)',
-                                  color: '#D97706', border: '1px solid #FCD34D', borderRadius: 9,
-                                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                                }}
-                              >
+                              <button onClick={() => openEdit(row)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+                                  background: '#FFFBEB', color: '#D97706', border: '1px solid #FCD34D',
+                                  borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                                 ✏️ Edit
                               </button>
                             )}
                             {row.settlement_status === 'GENERATED' && (
-                              <button
-                                className="ss-action-btn"
-                                onClick={() => openPay(row)}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                                  padding: '7px 12px',
-                                  background: 'linear-gradient(135deg,#059669,#047857)',
-                                  color: 'white', border: 'none', borderRadius: 9,
-                                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                                  boxShadow: '0 3px 10px rgba(5,150,105,0.35)',
-                                }}
-                              >
+                              <button onClick={() => openPay(row)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+                                  background: '#059669', color: 'white', border: 'none',
+                                  borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                                 💳 Pay
                               </button>
                             )}
                             {row.settlement_status === 'PAID' && (
-                              <button
-                                className="ss-action-btn"
-                                onClick={() => openPay(row)}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                                  padding: '7px 12px',
-                                  background: 'linear-gradient(135deg,#7C3AED,#6D28D9)',
-                                  color: 'white', border: 'none', borderRadius: 9,
-                                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                                  boxShadow: '0 3px 10px rgba(124,58,237,0.35)',
-                                }}
-                              >
+                              <button onClick={() => openPay(row)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+                                  background: '#7C3AED', color: 'white', border: 'none',
+                                  borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                                 🏦 Bank
                               </button>
                             )}
@@ -881,27 +618,10 @@ export default function SalarySettlement() {
               </tbody>
             </table>
           </div>
-
-          {/* Table footer */}
-          <div style={{
-            padding: '12px 20px',
-            background: '#F8FAFC',
-            borderTop: '1px solid #F1F5F9',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span style={{ fontSize: 12, color: '#94A3B8' }}>
-              Showing {list.length} technician{list.length !== 1 ? 's' : ''} for {MONTHS[month-1]} {year}
-            </span>
-            {totalNetSalary > 0 && (
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>
-                Total Payable: {INR(totalNetSalary)}
-              </span>
-            )}
-          </div>
         </div>
       )}
 
-      {/* ── Generate / Edit Modal ── */}
+      {/* Generate / Edit Modal */}
       {genModal && (
         <Modal
           title={`${genForm._settlement_id ? 'Edit' : 'Generate'} Salary — ${genModal.technician_name}`}
@@ -1056,13 +776,10 @@ export default function SalarySettlement() {
                   Cancel
                 </button>
                 <button onClick={saveGenerate} disabled={genLoading}
-                  style={{ padding: '10px 24px',
-                    background: genLoading ? '#93C5FD' : 'linear-gradient(135deg,#1B4FD8,#2563EB)',
-                    color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                  style={{ padding: '10px 24px', background: genLoading ? '#93C5FD' : '#1B4FD8', color: 'white',
+                    border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700,
                     cursor: genLoading ? 'not-allowed' : 'pointer',
-                    display: 'inline-flex', alignItems: 'center', gap: 8,
-                    boxShadow: genLoading ? 'none' : '0 4px 14px rgba(27,79,216,0.4)',
-                  }}>
+                    display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   {genLoading ? (
                     <>
                       <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)',
@@ -1079,7 +796,7 @@ export default function SalarySettlement() {
         </Modal>
       )}
 
-      {/* ── View Details Modal ── */}
+      {/* View Details Modal */}
       {viewLoading && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 50,
           display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1193,7 +910,7 @@ export default function SalarySettlement() {
         </Modal>
       )}
 
-      {/* ── Pay Salary Modal ── */}
+      {/* Pay Salary Modal */}
       {payModal && (
         <Modal
           title={payModal.settlement_status === 'PAID' ? '🏦 Send to Bank / UPI' : '💳 Pay Salary'}
@@ -1288,13 +1005,10 @@ export default function SalarySettlement() {
             </button>
             {payModal.settlement_status === 'GENERATED' ? (
               <button onClick={paySalary} disabled={payLoading}
-                style={{ padding: '12px 0',
-                  background: payLoading ? '#6EE7B7' : 'linear-gradient(135deg,#059669,#047857)',
-                  color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                style={{ padding: '12px 0', background: payLoading ? '#6EE7B7' : '#059669', color: 'white',
+                  border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700,
                   cursor: payLoading ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  boxShadow: payLoading ? 'none' : '0 4px 14px rgba(5,150,105,0.4)',
-                }}>
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {payLoading ? (
                   <><div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)',
                     borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Processing...</>
@@ -1304,13 +1018,10 @@ export default function SalarySettlement() {
               </button>
             ) : (
               <button onClick={sendToBank} disabled={payLoading}
-                style={{ padding: '12px 0',
-                  background: payLoading ? '#A78BFA' : 'linear-gradient(135deg,#7C3AED,#6D28D9)',
-                  color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                style={{ padding: '12px 0', background: payLoading ? '#A78BFA' : '#7C3AED', color: 'white',
+                  border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700,
                   cursor: payLoading ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  boxShadow: payLoading ? 'none' : '0 4px 14px rgba(124,58,237,0.4)',
-                }}>
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {payLoading ? (
                   <><div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)',
                     borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Processing...</>
