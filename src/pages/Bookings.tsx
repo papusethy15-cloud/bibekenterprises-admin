@@ -52,6 +52,7 @@ const ACTION_STATUSES = [
   'COMPLETED', 'RESCHEDULED',
   'INVOICE_GENERATED', 'PAYMENT_PENDING',
   'PENDING_VERIFICATION',   // visiting charge — needs admin collect + close
+  'CANCELLATION_REQUESTED',  // customer/technician requested — needs admin confirm or reject
 ]
 // Terminal statuses that need no further admin action
 const TERMINAL_STATUSES = ['PAID', 'CLOSED', 'SETTLED', 'CANCELLED']
@@ -68,6 +69,7 @@ const statusDot: Record<string, string> = {
   INSPECTING: '#F97316', IN_PROGRESS: '#10B981',
   COMPLETED: '#22C55E', CANCELLED: '#EF4444', RESCHEDULED: '#F97316',
   PAID: '#059669', CLOSED: '#374151', SETTLED: '#1E3A5F', INVOICE_GENERATED: '#7C3AED', PAYMENT_PENDING: '#F97316',
+  CANCELLATION_REQUESTED: '#DC2626',
   PENDING_VERIFICATION: '#7C3AED',
 }
 
@@ -136,6 +138,13 @@ export default function Bookings() {
   const [quotationBkg, setQuotationBkg] = useState<any>(null)
   const [workflowBkg, setWorkflowBkg] = useState<any>(null)
 
+  // ── Ops summary strip ──
+  const [todaySummary, setTodaySummary] = useState<any>(null)
+
+  // ── Sort controls ──
+  const [sortBy,    setSortBy]    = useState('smart')
+  const [sortOrder, setSortOrder] = useState('asc')
+
   // ── Manual assign needed alerts ──────────────────────────────────────────
   const [manualAlerts, setManualAlerts] = useState<Array<{ booking_id: string; booking_number: string; message: string; ts: number }>>([])
 
@@ -186,7 +195,7 @@ export default function Bookings() {
   const fetchBookings = useCallback(async () => {
     setLoading(true)
     try {
-      const params: any = { page, per_page: 20 }
+      const params: any = { page, per_page: 20, sort_by: sortBy, sort_order: sortOrder }
       if (priorityFilter) params.priority  = priorityFilter
       if (search)         params.search    = search
       if (dateFrom)       params.date_from = dateFrom
@@ -206,9 +215,14 @@ export default function Bookings() {
       setTotal(d.total  || 0)
     } catch { setBookings([]) }
     finally  { setLoading(false) }
-  }, [page, statusFilter, priorityFilter, search, dateFrom, dateTo, viewMode])
+  }, [page, statusFilter, priorityFilter, search, dateFrom, dateTo, viewMode, sortBy, sortOrder])
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
+
+  // Load today-summary strip on mount
+  useEffect(() => {
+    bookingsAPI.todaySummary().then(r => setTodaySummary(r.data?.data)).catch(() => {})
+  }, [])
 
   // ── Live WebSocket: auto-refresh bookings list on assignment events ────────
   const { subscribe, status: _wsStatus } = useAdminWebSocket()
@@ -495,6 +509,41 @@ export default function Bookings() {
         </div>
       )}
 
+      {/* ── Today Ops Summary Strip ── */}
+      {todaySummary && (
+        <div style={{
+          display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
+          background: 'linear-gradient(135deg,#EFF6FF,#F5F3FF)',
+          border: '1px solid #BFDBFE', borderRadius: 10,
+          padding: '10px 16px', marginBottom: 12, fontSize: 13,
+        }}>
+          <span style={{ fontWeight: 700, color: '#1B4FD8', marginRight: 6 }}>📅 Today</span>
+          <span style={{ background: '#DBEAFE', color: '#1D4ED8', borderRadius: 6, padding: '2px 10px', fontWeight: 700 }}>
+            {todaySummary.total_today} bookings
+          </span>
+          {todaySummary.urgent_count > 0 && (
+            <span style={{ background: '#FEE2E2', color: '#DC2626', borderRadius: 6, padding: '2px 10px', fontWeight: 700 }}>
+              🔴 {todaySummary.urgent_count} URGENT
+            </span>
+          )}
+          {todaySummary.unassigned_count > 0 && (
+            <span style={{ background: '#FEF3C7', color: '#92400E', borderRadius: 6, padding: '2px 10px', fontWeight: 700 }}>
+              ⚠️ {todaySummary.unassigned_count} unassigned
+            </span>
+          )}
+          {todaySummary.cancel_pending > 0 && (
+            <span style={{ background: '#FEE2E2', color: '#B91C1C', borderRadius: 6, padding: '2px 10px', fontWeight: 700 }}>
+              ✕ {todaySummary.cancel_pending} cancel pending
+            </span>
+          )}
+          {todaySummary.overdue_count > 0 && (
+            <span style={{ background: '#FEF2F2', color: '#991B1B', borderRadius: 6, padding: '2px 10px', fontWeight: 700 }}>
+              ⏰ {todaySummary.overdue_count} overdue
+            </span>
+          )}
+        </div>
+      )}
+
       {/* ── Mode Toggle ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginRight: 4 }}>View:</span>
@@ -520,6 +569,42 @@ export default function Bookings() {
             Hiding: Paid · Closed · Settled · Cancelled
           </span>
         )}
+      </div>
+
+      {/* ── Sort Controls ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>Sort:</span>
+        {([
+          { value: 'smart',          label: '⚡ Smart (date + urgency)' },
+          { value: 'scheduled_date', label: '📅 Scheduled date' },
+          { value: 'created_at',     label: '🕐 Created' },
+          { value: 'priority',       label: '🔴 Priority' },
+          { value: 'status',         label: '📌 Status' },
+        ] as const).map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => { setSortBy(opt.value); setPage(1) }}
+            style={{
+              padding: '4px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              fontSize: 11, fontWeight: 700,
+              background: sortBy === opt.value ? '#1B4FD8' : '#F1F5F9',
+              color: sortBy === opt.value ? 'white' : '#64748B',
+            }}
+          >{opt.label}</button>
+        ))}
+        <button
+          onClick={() => { setSortOrder(o => o === 'asc' ? 'desc' : 'asc'); setPage(1) }}
+          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 11, fontWeight: 700, background: '#F8FAFC', color: '#475569', cursor: 'pointer' }}
+        >
+          {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+        </button>
+        <button
+          className="btn btn-sm btn-secondary"
+          onClick={() => { const t = new Date().toLocaleDateString('en-CA'); setDateFrom(t); setDateTo(t); setPage(1) }}
+          style={{ fontSize: 11, whiteSpace: 'nowrap' }}
+        >
+          📅 Today only
+        </button>
       </div>
 
       {/* ── Filter Bar ── */}
@@ -806,6 +891,16 @@ export default function Bookings() {
                           <div style={{ width: 7, height: 7, borderRadius: '50%', background: statusDot[b.status] || '#94A3B8', flexShrink: 0 }} />
                           <StatusBadge status={b.status} />
                         </div>
+                        {b.is_overdue && (
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#B91C1C', marginTop: 3 }}>
+                            ⏰ Overdue
+                          </div>
+                        )}
+                        {b.has_pay_later && b.pay_later_due && (
+                          <div style={{ fontSize: 10, color: '#C2410C', marginTop: 2 }}>
+                            💳 Pay Later due {fmtDate(b.pay_later_due)}
+                          </div>
+                        )}
                       </td>
 
                       {/* Actions */}
@@ -860,6 +955,24 @@ export default function Bookings() {
                             >
                               Cancel
                             </button>
+                          )}
+                          {b.status === 'CANCELLATION_REQUESTED' && (
+                            <>
+                              <button
+                                className="btn btn-sm"
+                                style={{ fontSize: 11, background: '#059669', color: 'white', border: 'none', fontWeight: 700 }}
+                                onClick={() => bookingsAPI.confirmCancellation(b.id).then(fetchBookings).catch(() => {})}
+                              >
+                                ✓ Confirm
+                              </button>
+                              <button
+                                className="btn btn-sm"
+                                style={{ fontSize: 11, background: '#1B4FD8', color: 'white', border: 'none', fontWeight: 700 }}
+                                onClick={() => bookingsAPI.rejectCancellation(b.id).then(fetchBookings).catch(() => {})}
+                              >
+                                ↩ Reject
+                              </button>
+                            </>
                           )}
                           <button
                             className="btn btn-secondary btn-sm"
@@ -988,6 +1101,40 @@ export default function Bookings() {
               {detail.cancelled_reason && (
                 <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13 }}>
                   ❌ <b>Cancelled:</b> {detail.cancelled_reason}
+                </div>
+              )}
+
+              {/* Invoice + Payment info */}
+              {detail.invoice_number && (
+                <div style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#7C3AED', marginBottom: 6 }}>🧾 Invoice</div>
+                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13 }}>
+                    <div><span style={{ color: '#94A3B8' }}>Number: </span><b>{detail.invoice_number}</b></div>
+                    <div><span style={{ color: '#94A3B8' }}>Status: </span><b>{detail.invoice_status}</b></div>
+                    <div><span style={{ color: '#94A3B8' }}>Total: </span><b style={{ color: '#7C3AED' }}>{money(detail.invoice_total || 0)}</b></div>
+                    {detail.invoice_count > 1 && <div style={{ fontSize: 11, color: '#94A3B8' }}>{detail.invoice_count} invoices</div>}
+                  </div>
+                </div>
+              )}
+              {detail.payments && detail.payments.length > 0 && (
+                <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#059669', marginBottom: 8 }}>💳 Payments</div>
+                  {detail.payments.map((p: any, i: number) => (
+                    <div key={i} style={{ display: 'flex', gap: 14, fontSize: 12, marginBottom: 4, alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, color: '#059669', minWidth: 60 }}>{money(p.amount)}</span>
+                      <span style={{ background: '#E2E8F0', color: '#475569', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{p.method}</span>
+                      <span style={{
+                        borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 700,
+                        background: ['SUCCESS','COMPLETED','VERIFIED'].includes(p.status) ? '#DCFCE7' : p.status === 'PENDING' ? '#FEF3C7' : '#FEE2E2',
+                        color:      ['SUCCESS','COMPLETED','VERIFIED'].includes(p.status) ? '#166534' : p.status === 'PENDING' ? '#92400E' : '#DC2626',
+                      }}>{p.status}</span>
+                      <span style={{ color: '#94A3B8', fontSize: 11 }}>{p.created_at ? fmtDT(p.created_at) : ''}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 8, display: 'flex', gap: 20, fontSize: 12, borderTop: '1px solid #86EFAC', paddingTop: 8 }}>
+                    <div><span style={{ color: '#94A3B8' }}>Paid: </span><b style={{ color: '#059669' }}>{money(detail.total_paid || 0)}</b></div>
+                    {(detail.total_pending || 0) > 0 && <div><span style={{ color: '#94A3B8' }}>Pending: </span><b style={{ color: '#F59E0B' }}>{money(detail.total_pending)}</b></div>}
+                  </div>
                 </div>
               )}
 
